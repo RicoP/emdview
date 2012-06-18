@@ -1,3 +1,3 @@
 #!/bin/sh
 cd src
-clang -g main.cpp -o ../export
+clang -g *.cpp -o ../export

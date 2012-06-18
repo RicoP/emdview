@@ -47,12 +47,13 @@ void printArray(char negative, int max) {
 		if((i % 4) == 0) {
 			putchar('\n'); 
 		}
-		putchar('"'); 
-		if(negative)
-			putchar('-'); 
-		putchar('.'); 
-		recPutDigits(number * 10, max, 0, 0); 
-		putchar('"');
+
+		if(negative) 
+			printf("\"-%f\"", (double)number / (double)max); 
+		else
+			printf("\"%f\"", (double)number / (double)max); 
+
+
 	}
 	if(negative) {
 		printf(", \"-1\""); 
