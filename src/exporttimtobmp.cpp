@@ -56,7 +56,7 @@ void exportTimToBmp(void* buffer, int start, char* filename) {
 	u8* pixel = (u8*)((int)buffer + offset); 
 
 	high_color_t* paletteA = (high_color_t*) ((int)buffer + colorOffset); 
-	high_color_t* paletteB = NULL;	
+	high_color_t* paletteB = 0;	
 	if(header.nb_palettes == 2) 
 		paletteB = (high_color_t*) ((int)buffer + colorOffset + sizeof(high_color_t) * header.palette_colors); 	
 
@@ -74,7 +74,7 @@ void exportTimToBmp(void* buffer, int start, char* filename) {
 		high_color_t color; 
 
 		x = (i % (image_info.width * 2)); 
-		if(x < image_info.width && paletteB)
+		if(x < image_info.width || header.nb_palettes == 1 || !paletteB)
 			color = paletteA[ pixel[i] ];
 		else 
 			color = paletteB[ pixel[i] ];
