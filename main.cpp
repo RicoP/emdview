@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <inttypes.h>
 
+#pragma pack(1)
 typedef struct {
 	unsigned int	magic;	/* Constant = 0x10 */
 	unsigned int	type;
@@ -17,6 +18,7 @@ typedef struct {
 	unsigned short	nb_palettes;
 } tim_header_t;
 
+#pragma pack(1)
 typedef struct {
 	unsigned int    size; 
 	unsigned short  x; 
@@ -44,7 +46,7 @@ u8* loadFile(char *filename, int *length) {
 	return buf; 
 }
 
-void exportTimToPpm(void* buffer, int offset); 
+void exportTimToPpm(void* buffer, int offset, char* name); 
 int write_bmp(const char *filename, int width, int height, char *rgb);
 
 int main(int argc, char **argv)
@@ -79,29 +81,28 @@ int main(int argc, char **argv)
 
 
 	//TIM Texture
-	exportTimToPpm(fileInMem, timStart); 
+	exportTimToPpm(fileInMem, timStart, fileName); 
 	free(fileInMem); 
 	fileInMem = NULL; 
 
 	return 0; 
 }
 
+#pragma pack(1)
 typedef struct {
-	unsigned char R : 5; 
-	unsigned char G : 5; 
-	unsigned char B : 5;
+	unsigned short R : 5; 
+	unsigned short G : 5; 
+	unsigned short B : 5;
 	unsigned char A : 1;
-} true_color_t; 
-//typedef unsigned short true_color_t; 
-
-typedef true_color_t* palette; 
+} high_color_t; 
+//typedef unsigned short high_color_t; 
 
 #define TIM_TYPE_4BIT (8)
 #define TIM_TYPE_8BIT_PALETTE (9)
 #define TIM_TYPE_TRUE_COLOR (2) 
 #define BIT_5_TO_8(x) ((x) << 3 | (x) >> 2)
 
-void exportTimToPpm(void* buffer, int start) {
+void exportTimToPpm(void* buffer, int start, char* filename) {
 	int offset = start; 
 	fprintf(stderr, "start : %x.\n", start); 
 
@@ -123,9 +124,10 @@ void exportTimToPpm(void* buffer, int start) {
 	}
 
 	int colorOffset = offset; 
-	true_color_t* colors = (true_color_t*) ((int)buffer + offset); 
+	high_color_t* colors = (high_color_t*) ((int)buffer + offset); 
+	offset += header.palette_colors * header.nb_palettes * sizeof(high_color_t); 
 
-	offset += header.palette_colors * header.nb_palettes * sizeof(true_color_t); 
+	fprintf(stderr, "size color %i\n", sizeof(high_color_t)); 
 
 	fprintf(stderr, "size offset %x\n", offset); 
 
@@ -135,18 +137,26 @@ void exportTimToPpm(void* buffer, int start) {
 
 	fprintf(stderr, "size = %i, x = %i, y = %i, dim = (%i, %i).\n", image_info.size, image_info.x, image_info.y, image_info.width * 2, image_info.height); 
 
-	char name[256]; 
+
 	u8* pixel = (u8*)((int)buffer + offset); 
 
 	for(int p = 0; p != header.nb_palettes; p++) { 
+		char name[11]; //filename have allways the same length xxxxNN.emd or xxNNNN.emd = 10 + terminate
+		sprintf(name, "%s", filename); 
+		name[6] = 0; // terminate before "emd"
+		char destination[256]; 
+		sprintf(destination, "%s_%i.bmp", name, p); 
+
 		//create Image
-		sprintf(name, "BMP%i.bmp", p); 
-		true_color_t* colors = (true_color_t*) ((int)buffer + colorOffset + header.palette_colors*p); 
+		high_color_t* colors = (high_color_t*) ((int)buffer + colorOffset + header.palette_colors*p); 
 		char* rgb = (char*) malloc(image_info.size * 3);
 		int rgbIndex = 0; 
 
+		int x = 0; 
 		for(int i = 0; i != image_info.size; i++) { 
-			true_color_t color = colors[ pixel[i] ]; 
+			x = (i % (image_info.width * 2)); 
+			//high_color_t color = colors[ pixel[i] + ((x > 127) ? -128 : 0) ]; 
+			high_color_t color = colors[ pixel[i] ]; 
 			char c; 
 
 			c = (char)(color.R);
@@ -161,7 +171,7 @@ void exportTimToPpm(void* buffer, int start) {
 			//rgb[rgbIndex++] = BIT_5_TO_8( (color>>10) & 0x1F ); 
 		}
 
-		write_bmp(name, image_info.width * 2, image_info.height, rgb); 
+		write_bmp(destination, image_info.width * 2, image_info.height, rgb); 
 
 		free(rgb); 
 	}
