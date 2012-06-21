@@ -17,10 +17,8 @@
 
 static int write_bmp(const char *filename, int width, int height, char *rgb);
 
-void exportTimToBmp(void* buffer, int start, char* filename) {
-	int offset = start; 
-	fprintf(stderr, "start : %x.\n", start); 
-
+void exportTimToBmp(void* buffer, char* output) {
+	int offset = 0; 
 	tim_header_t header = *((tim_header_t*)((int)buffer + offset)); 
 	offset += sizeof(tim_header_t); 
 
@@ -60,12 +58,6 @@ void exportTimToBmp(void* buffer, int start, char* filename) {
 	if(header.nb_palettes == 2) 
 		paletteB = (high_color_t*) ((int)buffer + colorOffset + sizeof(high_color_t) * header.palette_colors); 	
 
-	char name[11]; //filename have allways the same length xxxxNN.emd or xxNNNN.emd = 10 + terminate
-	sprintf(name, "%s", filename); 
-	name[6] = 0; // terminate before "emd"
-	char destination[256]; 
-	sprintf(destination, "%s.bmp", name); 
-
 	//create Image
 	char* rgb = (char*) malloc(image_info.size * 3);
 	int rgbIndex = 0; 
@@ -92,7 +84,7 @@ void exportTimToBmp(void* buffer, int start, char* filename) {
 		//rgb[rgbIndex++] = BIT_5_TO_8( (color>>10) & 0x1F ); 
 	}
 
-	write_bmp(destination, image_info.width * 2, image_info.height, rgb); 
+	write_bmp(output, image_info.width * 2, image_info.height, rgb); 
 
 	free(rgb); 
 } 
@@ -113,10 +105,8 @@ struct BMPHeader
 	int biSizeImage;      /* Image size, in bytes (0 if no compression) */
 	int biXPelsPerMeter;  /* Resolution in pixels/meter of display device */
 	int biYPelsPerMeter;  /* Resolution in pixels/meter of display device */
-	int biClrUsed;        /* Number of colors in the color table (if 0, use 
-	maximum allowed by biBitCount) */
-	int biClrImportant;   /* Number of important colors.  If 0, all colors 
-	are important */
+	int biClrUsed;        /* Number of colors in the color table (if 0, use maximum allowed by biBitCount) */
+	int biClrImportant;   /* Number of important colors.  If 0, all colors are important */
 };
 
 static int write_bmp(const char *filename, int width, int height, char *rgb)

@@ -21,8 +21,6 @@ typedef struct {
 	unsigned short	height; /* Height of image in pixels */
 } tim_image_head_t;
 
-void exportTimToBmp(void* buffer, int offset, char* name); 
-
 #pragma pack(1)
 typedef struct {
 	unsigned short R : 5; 
@@ -32,4 +30,5 @@ typedef struct {
 } high_color_t; 
 //typedef unsigned short high_color_t; 
 
+void exportTimToBmp(void* buffer, char* output); 
 #endif 
