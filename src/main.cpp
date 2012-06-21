@@ -10,6 +10,7 @@
 
 #include "types.h"
 #include "exporttimtobmp.h" 
+#include "exportmeshtoobj.h"  
 
 u8* loadFile(char *filename, int *length) {
 	FILE *fp;
@@ -39,7 +40,19 @@ enum {
 	TO_OBJ   = 1<<5 
 };
 
+/*
+
+	/x/foo.bar
+	012
+
+*/
 void replaceExtension(char* input, char* extension, char* destination) {
+	//remove everything before the main filename /x/foo.abr -> foo.bar
+	for(char* p = input, n = 0; *p; p++, n++) {
+		if(*p == '/')
+			input = p+1;  
+	}
+
 	int lastPoint = -1; 
 	for(char* p = input, n = 0; *p; p++, n++) {
 		if(*p == '.') 
@@ -56,6 +69,7 @@ void replaceExtension(char* input, char* extension, char* destination) {
 	buff[lastPoint] = 0; //terminate at point
 
 	sprintf(destination, "%s.%s", buff, extension); 
+	fprintf(stderr, "%s\n", destination); 
 }
 
 int main(int argc, char **argv)
@@ -69,7 +83,7 @@ int main(int argc, char **argv)
 
 	{
 		int c; 
-		while ( (c = getopt(argc, argv, "i:exbtem")) != -1) {
+		while ( (c = getopt(argc, argv, "i:exbtemo")) != -1) {
 			switch(c) {
 				case 'i':
 				fprintf(stderr, "inputfile %s\n", optarg); 
@@ -99,6 +113,11 @@ int main(int argc, char **argv)
 				case 'm': 
 				fprintf(stderr, "MESH Export\n"); 
 				options |= TO_MESH; 
+				break; 
+
+				case 'o': 
+				fprintf(stderr, "OBJ Export\n"); 
+				options |= TO_OBJ; 
 				break; 
 			}
 		}
@@ -151,7 +170,7 @@ int main(int argc, char **argv)
 
 		if(options & TO_OBJ) {
 			replaceExtension(inputfile, "obj", output); 
-			exportTimToObj(meshBlob, output);
+			exportMeshToObj(meshBlob, output);
 		}
 
 		//TIM Texture
