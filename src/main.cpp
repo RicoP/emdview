@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <assert.h> 
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -74,6 +75,12 @@ void replaceExtension(char* input, char* extension, char* destination) {
 
 int main(int argc, char **argv)
 {
+	assert(sizeof(tmd_header_t) == 12); 
+	assert(sizeof(tmd_object_t) == 28); 
+	assert(sizeof(tmd_prim_header_t) == 4); 
+	assert(sizeof(tmd_vertex_t) == 8); 
+	assert(sizeof(tmd_txtriangle_t) == 24); 
+
 	int length = 0;
 	u8* blob = 0;
 

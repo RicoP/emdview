@@ -107,6 +107,13 @@ typedef struct {
 typedef struct {
 	u8 v; /* textures coordinates */
 	u8 u;
+} __tmd_textureuv_t; 
+
+
+#pragma pack(1)
+typedef struct {
+	u8 u;
+	u8 v; /* textures coordinates */
 } tmd_textureuv_t; 
 
 #pragma pack(1)
@@ -124,8 +131,31 @@ typedef struct {
 	u16 n1;
 	u16 v2;
 	u16 n2;
-} tmd_txtriangle_t;
+} __tmd_txtriangle_t;
 
+#pragma pack(1)
+typedef struct {
+	tmd_textureuv_t tex1;         //- X and Y coordinate of texture for Vertex0
+	u16 CBA;            //- position of CLUT for texture in VRAM (see earlier)
+	//u8  U1, V1;         //- X and Y coordinate of texture for Vertex1
+	tmd_textureuv_t tex2;
+	u16 TSB;            //- information about texture in VRAM (see earlier)
+	//u8  U2, V2;         //- X and Y coordinate of texture for Vertex2
+	tmd_textureuv_t tex3;
+	u16 pad;            //- ignored
+	u16 n0;        //- index value of normal element
+	u16 v0;        //- index value of vertex element
+	u16 n1;
+	u16 v1;
+	u16 n2;
+	u16 v2;				  
+} tmd_txtriangle_t; 
+
+#pragma pack(1)
+typedef struct {	
+	tmd_prim_header_t header; 
+	tmd_txtriangle_t triangle; 
+} tmd_txprimitive_t; 
 
 #pragma pack(1)
 typedef struct {
