@@ -4,40 +4,52 @@
 
 #include "exportmeshtoobj.h"
 
+#define FLOAT "%1.20f "
+#define FV  "v "  FLOAT FLOAT FLOAT "\n"
+#define FVN "vn " FLOAT FLOAT FLOAT "\n"
+#define FVT "vt " FLOAT FLOAT "\n"
+#define snormalize(x) ((x)/((float)0x7FFF))
+
 void exportMeshToObj(void* buffer, char* output) {
 	int blob = (int)buffer;  
 	int start = blob; 
 	tmd_header_t* header = (tmd_header_t*) blob; 
 	blob += sizeof(tmd_header_t);  
 
-	int vi = 0; 
-	int vti = 0; 
-	int vni = 0; 
+	int vi  = 1; 
+	int vti = 1; 
+	int vni = 1; 
 
-	int startFirstObject = blob; 
+	int offsetRel = blob; //Pointer to first Element is point of reference for vertexoffsets 
 	
 	fprintf(stderr, "id %x, unknown %x, count %x\n", header->id, header->unknown, header->num_objects); 
+
+	if(header->id != 0x41) {
+		fprintf(stderr, "Header must start with 0x41.\n"); 
+	}
 
 	tmd_object_t* objects = (tmd_object_t*) blob; 
 	blob += sizeof(tmd_object_t) * header->num_objects;
 
-	int offsetRel = (int)(objects);
-	FILE* stream = stdout; 
+
+	FILE* file = fopen ( output , "wt" );
 
 	for(int i = 0; i != header->num_objects; i++) {
-		//FILE* vstream = fopen ( "__v" , "wt" );
-		//FILE* tstream = fopen ( "__t" , "wt" );
-		//FILE* nstream = fopen ( "__n" , "wt" );
-		//FILE* fstream = fopen ( "__f" , "wt" );
-		FILE* tstream = stdout; 
-		FILE* fstream = stdout; 
-
-
 		tmd_object_t o = objects[i]; 
 
-		int offset = offsetRel + o.primitive_offset;
+		int primoffset = offsetRel + o.primitive_offset;
+		int vertoffset = offsetRel + o.vertex_offset;
+		int normoffset = offsetRel + o.normal_offset;
 
-		fprintf(stream, "o object_%i\n", i); 
+		tmd_prim_header_t* primhead = (tmd_prim_header_t*)(primoffset); 
+		tmd_vertex_t*      vertice  = (tmd_vertex_t*)(vertoffset);
+		tmd_vertex_t*      normals  = (tmd_vertex_t*)(normoffset);		
+
+		
+		if(primhead->type != 0x34) {
+			fprintf(stderr, "ERROR. Type must be 0x34 not %x.", primhead->type); 
+			exit(1);
+		}
 
 		fprintf(stderr, "%i: po: %i\tpc: %i\tvo: %i\tvc: %i\tno: %i\tnc: %i\tu: %i\n", 
 			i, 
@@ -50,34 +62,42 @@ void exportMeshToObj(void* buffer, char* output) {
 			o.unknown
 		);
 		
-		tmd_prim_header_t* primhead = (tmd_prim_header_t*)(offset); 
-		offset += sizeof(tmd_prim_header_t);
-
 		fprintf(stderr, "  length %i, type: %x, u1:%x, u2:%x\n", primhead->length, primhead->type, primhead->unknown0, primhead->unknown1);
+			
+		fprintf(file, "o object_%i\n", i); 
 
-		if(primhead->type != 0x34) {
-			fprintf(stderr, "ERROR. Type must be 0x34 not %x.", primhead->type); 
-			exit(1);
+		int t = 0; 
+		for(tmd_txtriangle_t* tri = (tmd_txtriangle_t*)(primoffset + sizeof(tmd_prim_header_t));
+			t != primhead->length; 
+			t++, tri++) 
+		{
+			int vertexindice[] = { tri->v0, tri->v1, tri->v2 }; 
+			for(int i = 0; i != 3; i++) {
+				tmd_vertex_t v = vertice[ vertexindice[i] ];
+				fprintf(file, FV, snormalize(v.x), snormalize(v.y), snormalize(v.z)); 
+			}
+
+			int normalindice[] = { tri->n0, tri->n1, tri->n2 }; 
+			for(int i = 0; i != 3; i++) {
+				tmd_vertex_t n = normals[ normalindice[i] ];
+				fprintf(file, FVN, snormalize(n.x), snormalize(n.y), snormalize(n.z)); 
+			}
+
+			fprintf(file, FVT, tri->tex1.u / 255.0f, tri->tex1.v / 255.0f); 
+			fprintf(file, FVT, tri->tex2.u / 255.0f, tri->tex2.v / 255.0f); 
+			fprintf(file, FVT, tri->tex3.u / 255.0f, tri->tex3.v / 255.0f); 
+
+
+			fprintf(file, "f"); 
+			fprintf(file, " %i/%i/%i", vi++, vti++, vni++); 
+			fprintf(file, " %i/%i/%i", vi++, vti++, vni++); 
+			fprintf(file, " %i/%i/%i", vi++, vti++, vni++); 
+			fprintf(file, "\n");  
+
+			break;
 		}
 
-		tmd_txtriangle_t* tri = (tmd_txtriangle_t*)(offset); 
-		fprintf(tstream, "vt %f %f\n", tri->tex1.u / 255.0f, tri->tex1.v / 255.0f); 
-		fprintf(tstream, "vt %f %f\n", tri->tex2.u / 255.0f, tri->tex2.v / 255.0f); 
-		fprintf(tstream, "vt %f %f\n", tri->tex3.u / 255.0f, tri->tex3.v / 255.0f); 
-
-		fprintf(fstream, "f "); 
-		fprintf(fstream, "%i/%i/%i ", tri->v0, vti+1, tri->n0); 
-		vti++; 
-		fprintf(fstream, "%i/%i/%i ", tri->v1, vti+1, tri->n1); 
-		vti++;
-		fprintf(fstream, "%i/%i/%i\n", tri->v2, vti+1, tri->n2); 
-		vti++; 
-
-		//fclose (vstream); 
-		//fclose (tstream); 
-		//fclose (nstream); 
-		//fclose (fstream); 
-		//fclose (stream); 
 	}
-
+	
+	fclose (file); 
 }
