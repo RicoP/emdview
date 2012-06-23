@@ -10,7 +10,7 @@
 #define FVN "vn " FLOAT FLOAT FLOAT "\n"
 #define FVT "vt " FLOAT FLOAT "\n"
 
-#define snormalize(x) ((x)/((float)0x7FFF))
+#define snormalize(x) ((x)/((float)0x500))
 #define cnormalize(x) ((x)/((float)0xFF))
 
 void exportMeshToObj(void* buffer, char* output) {
@@ -28,9 +28,12 @@ void exportMeshToObj(void* buffer, char* output) {
 	assert(header->id == 0x41); 
 
 	tmd_object_t* objects = (tmd_object_t*) blob; 
-	int firstObject = blob; 
+	int firstObject = blob; 	
 
 	for(int iobject = 0; iobject != header->num_objects; iobject++) {		
+		//DEBUG
+		float xoff = 0.0f * iobject; 
+
 		fprintf(stderr, "  %i\n", iobject); 
 		tmd_object_t obj = objects[iobject]; 
 
@@ -56,7 +59,7 @@ void exportMeshToObj(void* buffer, char* output) {
 			for(int i = 0; i != 3; i++) {
 				tmd_vertex_t v = vertice[ vertexindice[i] ];
 				assert(v.zero == 0); 
-				fprintf(file, FV, snormalize(v.x), snormalize(v.y), snormalize(v.z)); 
+				fprintf(file, FV, xoff + snormalize(v.x), snormalize(v.y), snormalize(v.z)); 
 			}
 
 			int normalindice[] = { tri.n0, tri.n1, tri.n2 }; 
@@ -66,9 +69,12 @@ void exportMeshToObj(void* buffer, char* output) {
 				fprintf(file, FVN, snormalize(n.x), snormalize(n.y), snormalize(n.z)); 
 			}
 
-			fprintf(file, FVT, cnormalize(tri.tex1.u), cnormalize(tri.tex1.v)); 
-			fprintf(file, FVT, cnormalize(tri.tex2.u), cnormalize(tri.tex2.v)); 
-			fprintf(file, FVT, cnormalize(tri.tex3.u), cnormalize(tri.tex3.v)); 
+			float Rp = (tri.TSB & 0x1F) * 0.5f; 
+			tmd_textureuv_t textures[] = { tri.tex1, tri.tex2, tri.tex3 }; 
+			for(int i = 0; i != 3; i++) { 
+				tmd_textureuv_t tex = textures[i]; 
+				fprintf(file, FVT, cnormalize(tex.u) + Rp, 1 - cnormalize(tex.v)); 
+			}
 
 			fprintf(file, "f"); 
 			for(int i = 0; i != 3; i++) {
