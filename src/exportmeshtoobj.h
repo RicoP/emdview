@@ -1,8 +1,8 @@
 #ifndef EXPORTMESHTOOBJ_H
 #define EXPORTMESHTOOBJ_H
+#include <stdio.h>
 
 #include "types.h" 
-
 
 #pragma pack(1)
 typedef struct {
@@ -171,6 +171,6 @@ typedef struct {
 	u16 v3;
 } tmd_flatquad2_t;
 
-void exportMeshToObj(void* buffer, char* output);
+void exportMeshToObj(void* buffer, FILE* file, void* skeletonBuffer);
 
 #endif 

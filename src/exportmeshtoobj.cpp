@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "exportmeshtoobj.h"
+#include "getskeletondata.h"
 
 #define FLOAT "%1.20f "
 #define FV  "v "  FLOAT FLOAT FLOAT "\n"
@@ -13,7 +14,7 @@
 #define snormalize(x) ((x)/((float)0x500))
 #define cnormalize(x) ((x)/((float)0xFF))
 
-void exportMeshToObj(void* buffer, char* output) {
+void exportMeshToObj(void* buffer, FILE* file, void* skeletonBuffer) {
 	int blob = (int)buffer;  
 	tmd_header_t* header = (tmd_header_t*) blob; 
 	blob += sizeof(tmd_header_t);  
@@ -22,17 +23,22 @@ void exportMeshToObj(void* buffer, char* output) {
 	int vti = 1; 
 	int vni = 1; 
 
-	FILE* file = fopen ( output , "wt" );
-
 	fprintf(stderr, "id %x, unknown %x, count %x\n", header->id, header->unknown, header->num_objects); 
 	assert(header->id == 0x41); 
 
 	tmd_object_t* objects = (tmd_object_t*) blob; 
 	int firstObject = blob; 	
 
+	emd_skel_relpos_t* skeleton = getSkeletonData(skeletonBuffer); 
+
 	for(int iobject = 0; iobject != header->num_objects; iobject++) {		
 		//DEBUG
-		float xoff = 0.0f * iobject; 
+		//float xoff = 1.4f * iobject; 
+		emd_skel_relpos_t bone = skeleton[iobject]; 
+		//DEBUG 
+		static int nr = 0; 
+		fprintf(stderr, "Bone %i: (%i,%i,%i)\n", nr++, bone.x, bone.y, bone.z);
+
 
 		fprintf(stderr, "  %i\n", iobject); 
 		tmd_object_t obj = objects[iobject]; 
@@ -58,8 +64,8 @@ void exportMeshToObj(void* buffer, char* output) {
 			int vertexindice[] = { tri.v0, tri.v1, tri.v2 }; 
 			for(int i = 0; i != 3; i++) {
 				tmd_vertex_t v = vertice[ vertexindice[i] ];
-				assert(v.zero == 0); 
-				fprintf(file, FV, xoff + snormalize(v.x), snormalize(v.y), snormalize(v.z)); 
+				assert(v.zero == 0); 				
+				fprintf(file, FV, snormalize(bone.x + v.x), snormalize(bone.y + v.y), snormalize(bone.z + v.z));
 			}
 
 			int normalindice[] = { tri.n0, tri.n1, tri.n2 }; 
@@ -70,6 +76,7 @@ void exportMeshToObj(void* buffer, char* output) {
 			}
 
 			float Rp = (tri.TSB & 0x1F) * 0.5f; 
+			fprintf(stderr, "TSB: %i\n", tri.TSB); 
 			tmd_textureuv_t textures[] = { tri.tex1, tri.tex2, tri.tex3 }; 
 			for(int i = 0; i != 3; i++) { 
 				tmd_textureuv_t tex = textures[i]; 
@@ -83,6 +90,4 @@ void exportMeshToObj(void* buffer, char* output) {
 			fprintf(file, "\n");  
 		}
 	}
-	
-	fclose (file); 
 }

@@ -12,6 +12,7 @@
 #include "types.h"
 #include "exporttimtobmp.h" 
 #include "exportmeshtoobj.h"  
+#include "exportskeletontojson.h" 
 
 u8* loadFile(char *filename, int *length) {
 	FILE *fp;
@@ -33,20 +34,16 @@ u8* loadFile(char *filename, int *length) {
 
 enum {
 	NONE = 0, 
-	FROM_EMD = 1<<0,
-	FROM_TIM = 1<<1,
-	TO_BMP   = 1<<2, 
-	TO_TIM   = 1<<3,
-	TO_MESH  = 1<<4, 
-	TO_OBJ   = 1<<5 
+	FROM_EMD  = 1<<0,
+	FROM_TIM  = 1<<1,
+	FROM_SKEL = 1<<2, 
+	TO_TIM    = 1<<3,
+	TO_MESH   = 1<<4, 
+	TO_OBJ    = 1<<5,
+	TO_JSON   = 1<<6,
+	TO_BMP    = 1<<7 
 };
 
-/*
-
-	/x/foo.bar
-	012
-
-*/
 void replaceExtension(char* input, char* extension, char* destination) {
 	//remove everything before the main filename /x/foo.abr -> foo.bar
 	for(char* p = input, n = 0; *p; p++, n++) {
@@ -85,12 +82,13 @@ int main(int argc, char **argv)
 	u8* blob = 0;
 
 	char* inputfile = 0; 
+	char usePipe = 0; 
 
 	int options = 0; 
 
 	{
 		int c; 
-		while ( (c = getopt(argc, argv, "i:exbtemo")) != -1) {
+		while ( (c = getopt(argc, argv, "i:exbtemopjs")) != -1) {
 			switch(c) {
 				case 'i':
 				fprintf(stderr, "inputfile %s\n", optarg); 
@@ -126,6 +124,21 @@ int main(int argc, char **argv)
 				fprintf(stderr, "OBJ Export\n"); 
 				options |= TO_OBJ; 
 				break; 
+
+				case 'p': 
+				fprintf(stderr, "use PIPE\n"); 
+				usePipe = 1; 
+				break; 
+
+				case 's': 
+				fprintf(stderr, "From SKEL\n"); 
+				options |= FROM_SKEL; 
+				break; 
+
+				case 'j': 
+				fprintf(stderr, "JSON Export\n"); 
+				options |= TO_JSON; 
+				break; 
 			}
 		}
 	}
@@ -151,13 +164,14 @@ int main(int argc, char **argv)
 	if(options & FROM_EMD) { 		
 		s32* directory = (int*)( blob + length - 4 * sizeof(s32) ); 
 
-		//s32 skeleton = directory[0]; 
+		s32 skelStart = directory[0]; 
 		//s32 animation = directory[1]; 
 		s32 meshStart = directory[2]; 
 		s32 timStart = (directory[3]);
 
 		void* timBlob  = blob + timStart; 
 		void* meshBlob = blob + meshStart; 
+		void* skelBlob = blob + skelStart; 
 
 		if(options & TO_MESH) {
 			FILE* pFile;
@@ -176,17 +190,38 @@ int main(int argc, char **argv)
 		}
 
 		if(options & TO_OBJ) {
-			replaceExtension(inputfile, "obj", output); 
-			exportMeshToObj(meshBlob, output);
+			if(!usePipe) {
+				replaceExtension(inputfile, "obj", output); 
+				FILE* file = fopen( output, "wt" ); 
+				exportMeshToObj(meshBlob, file, skelBlob);
+				fclose(file); 
+			}
+			else {	
+				exportMeshToObj(meshBlob, stdout, skelBlob);
+			}
 		}
 
-		//TIM Texture
+		//EMD -> BMP 
 		if(options & TO_BMP) { 
 			replaceExtension(inputfile, "bmp", output); 
 			exportTimToBmp(timBlob, output);
 		}
+
+		//Skel -> JSON
+		if(options & TO_JSON) {	
+			if(!usePipe) {
+				replaceExtension(inputfile, "json", output); 
+				FILE* file = fopen( output, "wt" ); 
+				exportSkeletonToJson(skelBlob, file);
+				fclose(file); 
+			}
+			else {	
+				exportSkeletonToJson(skelBlob, stdout);
+			}
+		}
 	}
 	else if(options & FROM_TIM) {
+		//TIM -> BMP 
 		if(options & TO_BMP) { 
 			replaceExtension(inputfile, "bmp", output); 
 			exportTimToBmp(blob, output);
